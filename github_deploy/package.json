@@ -1,0 +1,8 @@
+{
+  "name": "lernplaner",
+  "version": "1.0.0",
+  "description": "LernPlaner – iCloud Sync",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

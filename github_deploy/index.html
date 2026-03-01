@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<title>LernPlaner</title>
+<meta name="shortcut-ready" content="true">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f; --surface: #13131a; --surface2: #1c1c27; --surface3: #242433;
+  --border: rgba(255,255,255,0.08); --accent: #7fff6e; --accent2: #6e9fff;
+  --danger: #ff6e6e; --orange: #ffb86e; --purple: #c46eff;
+  --text: #f0eeff; --muted: rgba(240,238,255,0.4); --muted2: rgba(240,238,255,0.2);
+  --safe-top: env(safe-area-inset-top,0px); --safe-bottom: env(safe-area-inset-bottom,0px);
+  --nav-h: 72px; --header-h: 60px;
+}
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100dvh; overflow:hidden; user-select:none; }
+
+.status-bar { height:calc(var(--safe-top) + 12px); background:var(--bg); display:flex; align-items:flex-end; justify-content:space-between; padding:0 20px 6px; font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--muted); position:fixed; top:0; left:0; right:0; z-index:100; }
+
+.app-header { position:fixed; top:calc(var(--safe-top) + 28px); left:0; right:0; height:var(--header-h); background:var(--bg); display:flex; align-items:center; justify-content:space-between; padding:0 20px; z-index:90; border-bottom:1px solid var(--border); }
+.header-logo { font-family:'Bricolage Grotesque',sans-serif; font-size:1.25rem; font-weight:800; letter-spacing:-0.04em; display:flex; align-items:center; gap:4px; }
+.logo-dot { color:var(--accent); }
+.header-right { display:flex; align-items:center; gap:8px; }
+.dot-status { width:8px; height:8px; border-radius:50%; background:var(--muted2); transition:all 0.3s; }
+.dot-status.on { background:var(--accent); box-shadow:0 0 8px var(--accent); }
+.sync-btn { background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--muted); font-size:0.75rem; font-family:'DM Sans',sans-serif; padding:5px 10px; cursor:pointer; display:flex; align-items:center; gap:4px; transition:all 0.2s; }
+.sync-btn:hover { color:var(--accent); border-color:rgba(127,255,110,0.3); }
+.sync-btn.syncing { color:var(--accent); animation:spin 1s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.scroll-area { position:fixed; top:calc(var(--safe-top) + 28px + var(--header-h)); left:0; right:0; bottom:calc(var(--nav-h) + var(--safe-bottom)); overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px 16px 8px; }
+
+.bottom-nav { position:fixed; bottom:0; left:0; right:0; height:calc(var(--nav-h) + var(--safe-bottom)); background:var(--surface); border-top:1px solid var(--border); display:flex; align-items:flex-start; padding-top:8px; padding-bottom:var(--safe-bottom); z-index:100; backdrop-filter:blur(20px); }
+.nav-tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:4px 0; cursor:pointer; border:none; background:none; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:0.62rem; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; transition:all 0.2s; }
+.nav-tab.active { color:var(--accent); }
+.nav-tab:active { transform:scale(0.92); }
+.nav-icon { width:42px; height:28px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; transition:all 0.2s; }
+.nav-tab.active .nav-icon { background:rgba(127,255,110,0.12); }
+
+.screen { display:none; }
+.screen.active { display:block; }
+
+.section-head { margin-bottom:16px; }
+.section-title { font-family:'Bricolage Grotesque',sans-serif; font-size:1.5rem; font-weight:800; letter-spacing:-0.03em; line-height:1.1; }
+.section-sub { font-size:0.78rem; color:var(--muted); margin-top:4px; }
+
+.card { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:16px; margin-bottom:12px; }
+.card-label { font-family:'DM Mono',monospace; font-size:0.65rem; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+
+/* iCloud Link Input */
+.link-input-wrap { display:flex; gap:8px; align-items:stretch; }
+.link-input { flex:1; background:var(--surface2); border:1.5px solid var(--border); border-radius:10px; padding:10px 12px; color:var(--text); font-family:'DM Mono',monospace; font-size:0.72rem; outline:none; transition:border-color 0.15s; }
+.link-input:focus { border-color:var(--accent); background:var(--surface3); }
+.link-input::placeholder { color:var(--muted); }
+
+.sync-status-box { border-radius:12px; padding:12px 14px; margin-top:10px; display:flex; align-items:center; gap:10px; }
+.ss-idle    { background:var(--surface2); border:1px solid var(--border); }
+.ss-loading { background:rgba(110,159,255,0.1); border:1px solid rgba(110,159,255,0.25); }
+.ss-ok      { background:rgba(127,255,110,0.08); border:1px solid rgba(127,255,110,0.2); }
+.ss-error   { background:rgba(255,110,110,0.08); border:1px solid rgba(255,110,110,0.2); }
+.ss-icon { font-size:1.2rem; flex-shrink:0; }
+.ss-text { flex:1; }
+.ss-title { font-size:0.82rem; font-weight:600; }
+.ss-sub { font-size:0.72rem; color:var(--muted); margin-top:2px; }
+
+/* How-to box */
+.howto { background:var(--surface2); border-radius:12px; padding:12px 14px; margin-top:10px; }
+.howto-title { font-size:0.75rem; font-weight:700; color:var(--accent); margin-bottom:8px; display:flex; align-items:center; gap:6px; font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:0.08em; }
+.howto-step { display:flex; gap:10px; margin-bottom:8px; align-items:flex-start; }
+.howto-num { width:20px; height:20px; border-radius:50%; background:rgba(127,255,110,0.15); color:var(--accent); font-size:0.65rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+.howto-txt { font-size:0.78rem; color:var(--muted); line-height:1.4; }
+.howto-txt strong { color:var(--text); }
+
+/* schedule info */
+.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+.info-cell { background:var(--surface2); border-radius:10px; padding:10px 12px; }
+.info-val { font-family:'Bricolage Grotesque',sans-serif; font-size:1.4rem; font-weight:800; color:var(--accent); }
+.info-lbl { font-size:0.68rem; color:var(--muted); margin-top:2px; font-family:'DM Mono',monospace; }
+
+/* auto-refresh toggle */
+.toggle-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-top:1px solid var(--border); margin-top:8px; }
+.toggle-label { font-size:0.82rem; font-weight:500; }
+.toggle-sub { font-size:0.7rem; color:var(--muted); }
+.toggle { width:44px; height:26px; background:var(--surface3); border-radius:13px; border:none; cursor:pointer; position:relative; transition:background 0.2s; flex-shrink:0; }
+.toggle::after { content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:var(--muted); transition:all 0.2s; }
+.toggle.on { background:rgba(127,255,110,0.3); }
+.toggle.on::after { left:21px; background:var(--accent); }
+
+/* date picker */
+.date-row { display:flex; gap:6px; align-items:center; margin-top:10px; }
+.date-row input[type=date] { flex:1; background:var(--surface2); border:1.5px solid var(--border); border-radius:10px; padding:9px 12px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:0.85rem; outline:none; -webkit-appearance:none; }
+.date-row input:focus { border-color:var(--accent); }
+
+/* week grid */
+.week-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; margin:10px -4px 0; }
+.week-grid { display:flex; gap:4px; padding:4px; min-width:max-content; }
+.wg-col { display:flex; flex-direction:column; gap:2px; width:40px; }
+.wg-day { font-size:0.58rem; font-weight:700; text-align:center; color:var(--muted); text-transform:uppercase; padding-bottom:4px; border-bottom:1px solid var(--border); margin-bottom:2px; }
+.wg-slot { border-radius:4px; padding:2px 0; font-size:0.54rem; text-align:center; font-weight:500; font-family:'DM Mono',monospace; }
+.wg-free { background:rgba(127,255,110,0.12); color:var(--accent); border:1px solid rgba(127,255,110,0.15); }
+.wg-busy { background:rgba(255,110,110,0.08); color:var(--danger); border:1px solid rgba(255,110,110,0.12); opacity:0.6; }
+
+/* settings rows */
+.setting-row { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border); }
+.setting-row:last-child { border-bottom:none; }
+.setting-label { font-size:0.85rem; font-weight:500; }
+.setting-sub { font-size:0.72rem; color:var(--muted); margin-top:1px; }
+.setting-select { background:var(--surface3); border:1px solid var(--border); border-radius:8px; padding:6px 10px; color:var(--text); font-size:0.78rem; font-family:'DM Sans',sans-serif; -webkit-appearance:none; min-width:100px; text-align:right; }
+
+/* form */
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.form-row.single { grid-template-columns:1fr; }
+.form-group { display:flex; flex-direction:column; gap:5px; }
+.form-label { font-family:'DM Mono',monospace; font-size:0.62rem; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; }
+input[type=text], input[type=date], input[type=time], select { background:var(--surface2); border:1.5px solid var(--border); border-radius:10px; padding:10px 12px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:0.88rem; outline:none; -webkit-appearance:none; width:100%; transition:border-color 0.15s; }
+input:focus, select:focus { border-color:var(--accent); background:var(--surface3); }
+
+/* buttons */
+.btn { display:flex; align-items:center; justify-content:center; gap:6px; padding:13px 20px; border-radius:12px; border:none; font-family:'DM Sans',sans-serif; font-size:0.88rem; font-weight:700; cursor:pointer; transition:all 0.15s; width:100%; }
+.btn:active { transform:scale(0.96); }
+.btn-primary { background:var(--accent); color:#0a0a0f; }
+.btn-secondary { background:var(--surface3); color:var(--text); border:1px solid var(--border); }
+.btn-danger { background:rgba(255,110,110,0.15); color:var(--danger); border:1px solid rgba(255,110,110,0.2); }
+.btn-sm { padding:6px 12px; border-radius:8px; font-size:0.74rem; font-weight:600; width:auto; display:inline-flex; }
+.btn-icon { padding:10px; border-radius:10px; width:auto; }
+
+/* upload zone */
+.upload-zone { border:1.5px dashed var(--border); border-radius:14px; padding:20px 16px; text-align:center; cursor:pointer; background:var(--surface2); position:relative; transition:all 0.2s; }
+.upload-zone:active { transform:scale(0.97); border-color:var(--accent); }
+.upload-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; border-radius:14px; }
+.upload-emoji { font-size:1.8rem; margin-bottom:6px; }
+.upload-hint { font-size:0.78rem; color:var(--muted); }
+.upload-hint strong { color:var(--accent); }
+
+/* tests */
+.test-item { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:12px; border:1px solid var(--border); background:var(--surface2); margin-bottom:8px; animation:fadeUp 0.2s ease; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+.test-stripe { width:3px; border-radius:2px; align-self:stretch; flex-shrink:0; }
+.test-body { flex:1; min-width:0; }
+.test-name { font-weight:600; font-size:0.88rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.test-meta { font-size:0.72rem; color:var(--muted); margin-top:2px; display:flex; gap:8px; flex-wrap:wrap; }
+.badge { display:inline-block; padding:2px 7px; border-radius:100px; font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
+.badge-test { background:rgba(255,184,110,0.15); color:var(--orange); }
+.badge-sa { background:rgba(255,110,110,0.15); color:var(--danger); }
+.badge-glb { background:rgba(110,159,255,0.15); color:var(--accent2); }
+.badge-muendlich { background:rgba(196,110,255,0.15); color:var(--purple); }
+
+/* plan */
+.plan-day { border-radius:16px; overflow:hidden; border:1px solid var(--border); margin-bottom:10px; }
+.plan-day-head { padding:10px 14px; display:flex; align-items:center; justify-content:space-between; background:var(--surface2); font-family:'Bricolage Grotesque',sans-serif; font-weight:700; font-size:0.82rem; }
+.plan-day-badge { font-family:'DM Mono',monospace; font-size:0.62rem; color:var(--muted); font-weight:400; }
+.plan-sessions { background:var(--surface); padding:6px 8px; display:flex; flex-direction:column; gap:4px; }
+.plan-row { display:flex; align-items:center; gap:10px; padding:8px 6px; border-radius:8px; }
+.plan-time { font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--muted); min-width:88px; flex-shrink:0; }
+.plan-chip { padding:3px 10px; border-radius:100px; font-size:0.72rem; font-weight:600; white-space:nowrap; }
+.chip-learn { background:rgba(127,255,110,0.12); color:var(--accent); }
+.chip-review { background:rgba(255,184,110,0.12); color:var(--orange); }
+.chip-intense { background:rgba(196,110,255,0.12); color:var(--purple); }
+.chip-test { background:rgba(255,110,110,0.12); color:var(--danger); }
+.plan-note { font-size:0.7rem; color:var(--muted); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* legend */
+.legend { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+
+/* pill */
+.pill { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:100px; font-size:0.74rem; font-weight:600; margin-top:10px; width:100%; }
+.pill-info { background:rgba(110,159,255,0.15); color:var(--accent2); border:1px solid rgba(110,159,255,0.25); }
+.pill-success { background:rgba(127,255,110,0.12); color:var(--accent); border:1px solid rgba(127,255,110,0.25); }
+.pill-warn { background:rgba(255,184,110,0.12); color:var(--orange); border:1px solid rgba(255,184,110,0.25); }
+
+/* empty */
+.empty { text-align:center; padding:40px 20px; }
+.empty-icon { font-size:2.5rem; margin-bottom:10px; opacity:0.6; }
+.empty-title { font-weight:700; font-size:0.92rem; color:var(--text); margin-bottom:4px; }
+.empty-sub { font-size:0.78rem; color:var(--muted); }
+
+/* toast */
+.toast { position:fixed; bottom:calc(var(--nav-h) + var(--safe-bottom) + 16px); left:16px; right:16px; background:var(--surface3); border:1px solid var(--border); border-radius:14px; padding:12px 16px; font-size:0.82rem; font-weight:500; z-index:200; transform:translateY(20px); opacity:0; transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1); pointer-events:none; display:flex; align-items:center; gap:8px; }
+.toast.show { transform:translateY(0); opacity:1; }
+
+/* spinning icon for sync */
+.spin { display:inline-block; animation:spinAnim 1s linear infinite; }
+@keyframes spinAnim { to { transform:rotate(360deg); } }
+
+::-webkit-scrollbar { width:0; }
+</style>
+</head>
+<body>
+
+<div class="status-bar">
+  <span id="statusTime">09:41</span>
+  <span>●●●</span>
+</div>
+
+<div class="app-header">
+  <div class="header-logo">Lern<span class="logo-dot">.</span>Planer</div>
+  <div class="header-right">
+    <button class="sync-btn" id="syncBtn" onclick="pasteFromClipboard()" title="Aus Zwischenablage laden">
+      <span id="syncIcon">📋</span> Einfügen
+    </button>
+    <div class="dot-status" id="dot1" title="Kalender verbunden"></div>
+    <div class="dot-status" id="dot2" title="Tests eingetragen"></div>
+    <div class="dot-status" id="dot3" title="Plan generiert"></div>
+  </div>
+</div>
+
+<div class="scroll-area" id="scrollArea">
+
+  <!-- ══ SCREEN: KALENDER ══ -->
+  <div class="screen active" id="screen-kalender">
+    <div class="section-head">
+      <div class="section-title">Kalender</div>
+      <div class="section-sub">iCloud-Link einmal einfügen – automatisch sync.</div>
+    </div>
+
+    <div class="card" id="shortcutStatusCard">
+      <div class="card-label">🔗 iCloud Kalender-Link</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input class="link-input" id="calUrl" type="url"
+          placeholder="webcal://p123-caldav.icloud.com/…"
+          style="flex:1;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.72rem;outline:none;"
+          oninput="localStorage.setItem('lp_calUrl',this.value)">
+        <button class="btn btn-primary btn-sm" onclick="syncFromUrl()" style="width:44px;height:42px;padding:0;border-radius:10px;font-size:1.1rem;flex-shrink:0;">↻</button>
+      </div>
+
+      <div class="sync-status-box ss-idle" id="syncStatus" style="margin-top:10px;">
+        <span class="ss-icon">📡</span>
+        <div class="ss-text">
+          <div class="ss-title" id="ssTitle">Noch kein Kalender geladen</div>
+          <div class="ss-sub" id="ssSub">Füge deinen iCloud-Link ein und tippe auf ↻</div>
+        </div>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Auto-Sync beim Öffnen</div>
+          <div class="toggle-sub">Kalender automatisch aktualisieren</div>
+        </div>
+        <button class="toggle on" id="autoSyncToggle" onclick="toggleAutoSync()"></button>
+      </div>
+
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+        <div class="card-label" style="margin-bottom:8px;">📁 Oder ICS-Datei hochladen</div>
+        <div class="upload-zone">
+          <input type="file" accept=".ics" onchange="loadStundenplan(event)">
+          <div class="upload-emoji">📂</div>
+          <div class="upload-hint">ICS-Datei hochladen</div>
+        </div>
+      </div>
+    </div>
+
+        <!-- Kurzbefehl Anleitung -->
+    <div class="card">
+      <div class="card-label">📖 Kurzbefehl einrichten</div>
+
+      <div style="background:rgba(127,255,110,0.06);border:1px solid rgba(127,255,110,0.2);border-radius:12px;padding:12px 14px;margin-bottom:12px;">
+        <div style="font-size:0.78rem;color:var(--accent);font-weight:700;margin-bottom:4px;">✅ Warum Kurzbefehl?</div>
+        <div style="font-size:0.75rem;color:var(--muted);line-height:1.5;">Der Kurzbefehl läuft direkt auf deinem iPhone und hat vollen Zugriff auf deine Kalender – kein CORS-Problem, kein Server nötig. Ein Tipp genügt!</div>
+      </div>
+
+      <div class="howto">
+        <div class="howto-title">🛠 Kurzbefehl erstellen</div>
+        <div class="howto-step"><div class="howto-num">1</div><div class="howto-txt">Öffne die <strong>Kurzbefehle-App</strong> auf deinem iPhone</div></div>
+        <div class="howto-step"><div class="howto-num">2</div><div class="howto-txt">Tippe oben rechts auf <strong>+</strong> → „Aktion hinzufügen"</div></div>
+        <div class="howto-step"><div class="howto-num">3</div><div class="howto-txt">Suche nach <strong>„Kalenderevents suchen"</strong> und füge es hinzu</div></div>
+        <div class="howto-step"><div class="howto-num">4</div><div class="howto-txt">Stelle ein: Kalender = <strong>dein Schulkalender</strong>, Zeitraum = <strong>nächste 150 Tage</strong></div></div>
+        <div class="howto-step"><div class="howto-num">5</div><div class="howto-txt">Füge <strong>„Text"</strong>-Aktion hinzu, tippe in das Textfeld und wähle <strong>„Kalenderevents"</strong> aus den Variablen</div></div>
+        <div class="howto-step"><div class="howto-num">6</div><div class="howto-txt">Füge <strong>„In Ablage kopieren"</strong> hinzu → wähle den Text aus Schritt 5</div></div>
+        <div class="howto-step"><div class="howto-num">7</div><div class="howto-txt">Füge <strong>„URL öffnen"</strong> hinzu mit dieser URL:<br><code style="color:var(--accent2);font-size:0.68rem;word-break:break-all;">Diese App-URL (als Lesezeichen gespeichert)</code></div></div>
+        <div class="howto-step"><div class="howto-num">8</div><div class="howto-txt">Kurzbefehl <strong>speichern</strong> und zum Homescreen hinzufügen</div></div>
+      </div>
+
+      <div style="background:rgba(110,159,255,0.06);border:1px solid rgba(110,159,255,0.2);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:0.75rem;color:var(--muted);line-height:1.5;">
+        💡 <strong style="color:var(--accent2)">Alternativ:</strong> Statt „Text" kannst du auch die Aktion <strong style="color:var(--text)">„Kalender-ICS exportieren"</strong> verwenden (falls verfügbar) und die Datei direkt übergeben.
+      </div>
+    </div>
+
+    <!-- Erweiterte Anleitung: ICS-Methode -->
+    <div class="card">
+      <div class="card-label">⚡ Einfachere Methode: ICS-Datei</div>
+      <div class="howto">
+        <div class="howto-title">📱 Kurzbefehl mit ICS-Datei</div>
+        <div class="howto-step"><div class="howto-num">1</div><div class="howto-txt">Kurzbefehle-App → <strong>+</strong> → „Aktion hinzufügen"</div></div>
+        <div class="howto-step"><div class="howto-num">2</div><div class="howto-txt">Suche <strong>„Kalenderevents suchen"</strong> → dein Schulkalender → nächste 150 Tage</div></div>
+        <div class="howto-step"><div class="howto-num">3</div><div class="howto-txt">Suche <strong>„Datei erstellen"</strong> → Name: <code style="color:var(--accent2)">stundenplan.ics</code></div></div>
+        <div class="howto-step"><div class="howto-num">4</div><div class="howto-txt">Suche <strong>„Datei teilen"</strong> → wähle die erstellte Datei</div></div>
+        <div class="howto-step"><div class="howto-num">5</div><div class="howto-txt">Beim Teilen: <strong>„In LernPlaner öffnen"</strong> wählen (wenn App als Lesezeichen auf Homescreen ist)</div></div>
+      </div>
+      <div style="background:rgba(255,184,110,0.06);border:1px solid rgba(255,184,110,0.2);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:0.75rem;color:var(--muted);line-height:1.5;">
+        🎯 <strong style="color:var(--orange)">Empfehlung:</strong> Speichere die App zuerst als <strong style="color:var(--text)">„Zum Homescreen"</strong> in Safari. Dann klappt der Kurzbefehl am besten.
+      </div>
+    </div>
+
+    <!-- Kalender-Infos nach dem Laden -->
+    <div class="card" id="calInfoCard" style="display:none">
+      <div class="card-label">📊 Geladene Termine</div>
+      <div class="info-grid" id="calInfoGrid"></div>
+
+      <div class="card-label" style="margin-top:14px;">📅 Wochenvorschau</div>
+      <div class="date-row">
+        <input type="date" id="previewDate" onchange="recompute()">
+        <button class="btn btn-secondary btn-sm" onclick="prevWeek()">←</button>
+        <button class="btn btn-secondary btn-sm" onclick="goToToday()">Heute</button>
+        <button class="btn btn-secondary btn-sm" onclick="nextWeek()">→</button>
+      </div>
+      <div class="week-scroll"><div class="week-grid" id="weekGrid"></div></div>
+    </div>
+
+    <!-- Lernfenster Settings -->
+    <div class="card" id="settingsCard" style="display:none">
+      <div class="card-label">⚙️ Lernfenster</div>
+      <div class="setting-row">
+        <div><div class="setting-label">Lernzeit von</div></div>
+        <select class="setting-select" id="learnStart" onchange="recompute();saveSett()">
+          <option value="6">06:00</option><option value="7">07:00</option><option value="8">08:00</option>
+          <option value="9">09:00</option><option value="10">10:00</option><option value="11">11:00</option>
+          <option value="12">12:00</option><option value="13">13:00</option><option value="14" selected>14:00</option>
+          <option value="15">15:00</option><option value="16">16:00</option><option value="17">17:00</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Lernzeit bis</div></div>
+        <select class="setting-select" id="learnEnd" onchange="recompute();saveSett()">
+          <option value="14">14:00</option><option value="15">15:00</option><option value="16">16:00</option>
+          <option value="17">17:00</option><option value="18">18:00</option><option value="19">19:00</option>
+          <option value="20">20:00</option><option value="21">21:00</option><option value="22" selected>22:00</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Einheitsdauer</div></div>
+        <select class="setting-select" id="sessionDur" onchange="recompute();saveSett()">
+          <option value="45">45 Min</option><option value="60" selected>60 Min</option><option value="90">90 Min</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Max. Lerntage/Woche</div></div>
+        <select class="setting-select" id="maxDaysPerWeek" onchange="recompute();saveSett()">
+          <option value="2">2 Tage</option><option value="3" selected>3 Tage</option>
+          <option value="4">4 Tage</option><option value="5">5 Tage</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Freizeit garantieren</div></div>
+        <select class="setting-select" id="restDays" onchange="recompute();saveSett()">
+          <option value="1">1 Tag/Woche</option><option value="2" selected>2 Tage/Woche</option><option value="3">3 Tage/Woche</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: TESTS ══ -->
+  <div class="screen" id="screen-tests">
+    <div class="section-head">
+      <div class="section-title">Tests</div>
+      <div class="section-sub">Importieren oder manuell eintragen.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">📋 Test-ICS importieren</div>
+      <div class="upload-zone">
+        <input type="file" accept=".ics" onchange="loadTestICS(event)">
+        <div class="upload-emoji">📋</div>
+        <div class="upload-hint">Tippen zum <strong>Importieren</strong></div>
+      </div>
+      <div class="pill pill-info" id="testImportStatus">ℹ️ Noch keine Test-Datei.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">✏️ Manuell hinzufügen</div>
+      <div class="form-row">
+        <div class="form-group"><div class="form-label">Fach</div><input type="text" id="sub" placeholder="z.B. Mathe"></div>
+        <div class="form-group"><div class="form-label">Datum</div><input type="date" id="tDate"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><div class="form-label">Typ</div>
+          <select id="tType">
+            <option value="test">Test</option><option value="sa">Schularbeit</option>
+            <option value="glb">GLB</option><option value="muendlich">Mündlich</option>
+          </select>
+        </div>
+        <div class="form-group"><div class="form-label">Aufwand</div>
+          <select id="tEffort">
+            <option value="2">~2h Gering</option><option value="4" selected>~4h Mittel</option>
+            <option value="6">~6h Hoch</option><option value="8">~8h Sehr hoch</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><div class="form-label">Uhrzeit</div><input type="time" id="tTime" value="08:00"></div>
+        <div class="form-group"><div class="form-label">Dauer</div>
+          <select id="tDuration">
+            <option value="50" selected>50 Min</option><option value="100">100 Min</option>
+            <option value="60">60 Min</option><option value="90">90 Min</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row single">
+        <div class="form-group"><div class="form-label">Notiz</div><input type="text" id="tNote" placeholder="Kapitel, Themen…"></div>
+      </div>
+      <button class="btn btn-primary" onclick="addTest()" style="margin-top:4px;">+ Hinzufügen</button>
+    </div>
+
+    <div class="card">
+      <div class="card-label">
+        <span>📌 Eingetragene Tests</span>
+        <span style="margin-left:auto;color:var(--accent)" id="testCount">0</span>
+      </div>
+      <div id="testsList">
+        <div class="empty"><div class="empty-icon">📝</div><div class="empty-title">Noch keine Tests</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: PLAN ══ -->
+  <div class="screen" id="screen-plan">
+    <div class="section-head">
+      <div class="section-title">Lernplan</div>
+      <div class="section-sub">Intelligente Verteilung – mehrere Einheiten pro Tag möglich.</div>
+    </div>
+
+    <div class="card">
+      <button class="btn btn-primary" onclick="generatePlan()" style="margin-bottom:8px;">🧠 Plan generieren</button>
+
+      <!-- Subscribe card – shown after first save -->
+      <div id="subscribeCard" style="display:none;background:rgba(127,255,110,0.06);border:1px solid rgba(127,255,110,0.2);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+        <div style="font-size:0.72rem;font-weight:700;color:var(--accent);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">📅 Kalender-Abonnement</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+          Trage diesen Link <strong style="color:var(--text)">einmal</strong> in iCloud ein – danach aktualisiert sich dein Kalender automatisch bei jedem neuen Plan.
+        </div>
+        <div id="feedUrlBox" style="background:var(--surface2);border:1px solid rgba(110,159,255,0.25);border-radius:8px;padding:8px 10px;font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--accent2);word-break:break-all;margin-bottom:8px;"></div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-secondary btn-sm" onclick="copyFeedUrl()" style="flex:1;">Kopieren</button>
+          <button class="btn btn-secondary btn-sm" onclick="openInCalendar()" style="flex:1;">Abonnieren</button>
+          <button class="btn btn-primary btn-sm" onclick="forceSyncNow()" style="flex:1;" id="forceSyncBtn">Sync</button>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="testFeedNow()" style="width:100%;margin-top:6px;" id="testFeedBtn">Feed testen</button>
+        <div id="syncResultBox" style="display:none;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:0.75rem;line-height:1.5;"></div>
+        <div id="feedTestResult" style="display:none;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:0.72rem;word-break:break-all;"></div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:8px;line-height:1.4;">
+          <strong style="color:var(--text)">Einmalig abonnieren:</strong> Kalender-App → + → Kalenderabo → Link einfügen.<br>
+          Danach nur noch <strong style="color:var(--accent)">Sync</strong> tippen.
+        </div>
+      </div>
+
+      <button class="btn btn-secondary" onclick="exportICS()" id="exportBtn" style="display:none;margin-bottom:8px;">⬇️ Als ICS exportieren</button>
+
+      <div class="legend">
+        <span class="plan-chip chip-learn">📚 Lernen</span>
+        <span class="plan-chip chip-review">📖 Wiederholen</span>
+        <span class="plan-chip chip-intense">🔥 Intensiv</span>
+        <span class="plan-chip chip-test">🔴 Test</span>
+      </div>
+    </div>
+
+    <div id="planOutput">
+      <div class="empty" style="padding:40px 0">
+        <div class="empty-icon">📅</div>
+        <div class="empty-title">Noch kein Plan</div>
+        <div class="empty-sub">Verbinde deinen Kalender, trage Tests ein und generiere den Plan.</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /scroll-area -->
+
+<nav class="bottom-nav">
+  <button class="nav-tab active" onclick="switchScreen('kalender',this)">
+    <div class="nav-icon">🔗</div>Kalender
+  </button>
+  <button class="nav-tab" onclick="switchScreen('tests',this)">
+    <div class="nav-icon">📋</div>Tests
+  </button>
+  <button class="nav-tab" onclick="switchScreen('plan',this)">
+    <div class="nav-icon">📅</div>Lernplan
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ STATE ══
+let busySlots=[], freeSlotsByDay={}, learnableSlots={}, tests=[], generatedEvents=[], icsLoaded=false;
+let autoSync=true;
+
+// ══ CLOCK ══
+function updateClock(){
+  const n=new Date();
+  document.getElementById('statusTime').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+}
+updateClock(); setInterval(updateClock,30000);
+
+// ══ TOAST ══
+let toastTimer;
+function showToast(msg,type='info'){
+  const t=document.getElementById('toast');
+  const icons={info:'ℹ️',success:'✅',warn:'⚠️',error:'❌'};
+  t.innerHTML=`<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// ══ HELPERS ══
+const pad=n=>String(n).padStart(2,'0');
+const toKey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const toICSDate=d=>`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+const BYDAY={MO:1,TU:2,WE:3,TH:4,FR:5,SA:6,SU:0};
+
+function parseICSDate(s){
+  if(!s) return null;
+  const raw=(s.includes(':')&&!/^\d/.test(s))?s.split(':').pop():s;
+  const c=raw.replace(/Z$/,'').trim();
+  if(c.length>=15&&c[8]==='T') return new Date(+c.slice(0,4),+c.slice(4,6)-1,+c.slice(6,8),+c.slice(9,11),+c.slice(11,13),0);
+  if(c.length===8) return new Date(+c.slice(0,4),+c.slice(4,6)-1,+c.slice(6,8),0,0,0);
+  return null;
+}
+function getWeekKey(d){const m=new Date(d);m.setDate(d.getDate()-((d.getDay()+6)%7));return toKey(m);}
+
+function parseICS(text){
+  const events=[];
+  const norm=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n[ \t]/g,'');
+  norm.split(/BEGIN:VEVENT/i).slice(1).forEach(block=>{
+    const rawStart=block.match(/DTSTART(?:;[^:]+)?:([^\n]+)/i)?.[1]?.trim();
+    const rawEnd=block.match(/DTEND(?:;[^:]+)?:([^\n]+)/i)?.[1]?.trim();
+    const rrule=block.match(/RRULE:([^\n]+)/i)?.[1]?.trim();
+    if(!rawStart||!rawEnd) return;
+    const start=parseICSDate(rawStart),end=parseICSDate(rawEnd);
+    if(!start||!end||isNaN(start)||isNaN(end)) return;
+    const dur=end-start;
+    if(rrule&&/FREQ=WEEKLY/i.test(rrule)){
+      const parts={};
+      rrule.split(';').forEach(p=>{const[k,v]=p.split('=');if(k&&v)parts[k.toUpperCase()]=v;});
+      const until=parts.UNTIL?parseICSDate(parts.UNTIL):new Date(start.getTime()+150*86400000);
+      const maxC=parts.COUNT?+parts.COUNT:300;
+      const bydays=parts.BYDAY?parts.BYDAY.split(',').map(d=>BYDAY[d.trim().toUpperCase().replace(/[0-9+-]/g,'')]).filter(x=>x!==undefined):null;
+      if(bydays&&bydays.length>0){
+        bydays.forEach(dow=>{
+          let cur=new Date(start);
+          const diff=(dow-cur.getDay()+7)%7;
+          cur.setDate(cur.getDate()+diff); cur.setHours(start.getHours(),start.getMinutes(),0,0);
+          let cnt=0;
+          while(cur<=until&&cnt<maxC){events.push({start:new Date(cur),end:new Date(cur.getTime()+dur)});cur.setDate(cur.getDate()+7);cnt++;}
+        });
+      } else {
+        let cur=new Date(start),cnt=0;
+        while(cur<=until&&cnt<maxC){events.push({start:new Date(cur),end:new Date(cur.getTime()+dur)});cur.setDate(cur.getDate()+7);cnt++;}
+      }
+    } else events.push({start,end});
+  });
+  return events;
+}
+
+// ══ LOCALSTORAGE ══
+function saveUrl(){
+  const url=document.getElementById('calUrl').value.trim();
+  if(url) localStorage.setItem('lp_calUrl',url);
+}
+function saveSett(){
+  localStorage.setItem('lp_sett',JSON.stringify({
+    learnStart:document.getElementById('learnStart').value,
+    learnEnd:document.getElementById('learnEnd').value,
+    sessionDur:document.getElementById('sessionDur').value,
+    maxDaysPerWeek:document.getElementById('maxDaysPerWeek').value,
+    restDays:document.getElementById('restDays').value,
+  }));
+}
+function saveTests(){localStorage.setItem('lp_tests',JSON.stringify(tests));}
+function loadSaved(){
+  // url
+  const url=localStorage.getItem('lp_calUrl');
+  if(url) document.getElementById('calUrl').value=url;
+  // settings
+  const sett=JSON.parse(localStorage.getItem('lp_sett')||'{}');
+  if(sett.learnStart) document.getElementById('learnStart').value=sett.learnStart;
+  if(sett.learnEnd) document.getElementById('learnEnd').value=sett.learnEnd;
+  if(sett.sessionDur) document.getElementById('sessionDur').value=sett.sessionDur;
+  if(sett.maxDaysPerWeek) document.getElementById('maxDaysPerWeek').value=sett.maxDaysPerWeek;
+  if(sett.restDays) document.getElementById('restDays').value=sett.restDays;
+  // tests
+  const t=JSON.parse(localStorage.getItem('lp_tests')||'[]');
+  tests=t; renderTests();
+  // autoSync
+  autoSync=localStorage.getItem('lp_autoSync')!=='false';
+  document.getElementById('autoSyncToggle').className='toggle'+(autoSync?' on':'');
+}
+
+function toggleAutoSync(){
+  autoSync=!autoSync;
+  document.getElementById('autoSyncToggle').className='toggle'+(autoSync?' on':'');
+  localStorage.setItem('lp_autoSync',autoSync);
+  showToast(autoSync?'Auto-Sync aktiviert':'Auto-Sync deaktiviert', autoSync?'success':'info');
+}
+
+async function syncFromUrl(){
+  const rawUrl=document.getElementById('calUrl').value.trim();
+  if(!rawUrl){showToast('Bitte iCloud-Link einfügen!','error');return;}
+  localStorage.setItem('lp_calUrl',rawUrl);
+  setSyncStatus('loading','Lade Kalender …','Verbinde mit iCloud …');
+  const icon=document.getElementById('syncIcon');
+  if(icon){icon.className='spin';}
+  try{
+    const text=await fetchWithProxy(rawUrl);
+    processICSData(text,'iCloud Kalender');
+  }catch(err){
+    setSyncStatus('error','Sync fehlgeschlagen',err.message);
+    showToast('Sync fehlgeschlagen','error');
+  }finally{
+    if(icon){icon.className='';}
+  }
+}
+
+// ══ SYNC / FETCH CALENDAR ══
+// Use our own Netlify proxy function (works when hosted on Netlify)
+// Falls back to direct fetch and public proxies otherwise
+async function fetchWithProxy(rawUrl){
+  const url=rawUrl.replace(/^webcal:\/\//i,'https://');
+
+  // 1. Try our own Netlify proxy first (only works when hosted on Netlify)
+  const isNetlify = window.location.hostname.endsWith('.netlify.app') || window.location.hostname.endsWith('.netlify.com');
+  if(isNetlify){
+    try{
+      const proxyUrl=`/.netlify/functions/proxy?url=${encodeURIComponent(url)}`;
+      const res=await fetch(proxyUrl,{signal:AbortSignal.timeout(10000)});
+      if(res.ok){
+        const text=await res.text();
+        if(text.includes('BEGIN:VCALENDAR')) return text;
+      }
+    }catch(e){ console.warn('Netlify proxy failed:',e); }
+  }
+
+  // 2. Try direct fetch (works if iCloud adds CORS headers in future)
+  try{
+    const res=await fetch(url,{signal:AbortSignal.timeout(6000)});
+    if(res.ok){
+      const text=await res.text();
+      if(text.includes('BEGIN:VCALENDAR')) return text;
+    }
+  }catch(e){ /* blocked by CORS, expected */ }
+
+  // 3. Public proxy fallbacks
+  const PROXIES=[
+    u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  ];
+  for(const makeProxy of PROXIES){
+    try{
+      const res=await fetch(makeProxy(url),{signal:AbortSignal.timeout(8000)});
+      if(res.ok){
+        const text=await res.text();
+        if(text.includes('BEGIN:VCALENDAR')) return text;
+      }
+    }catch(e){}
+  }
+  throw new Error('Kalender konnte nicht geladen werden. Stelle sicher dass der Kalender öffentlich geschalten ist.');
+}
+
+function setSyncStatus(state,title,sub){
+  const box=document.getElementById('syncStatus');
+  const icons={idle:'📡',loading:'⏳',ok:'✅',error:'❌'};
+  box.className=`sync-status-box ss-${state}`;
+  box.querySelector('.ss-icon').textContent=icons[state]||'📡';
+  document.getElementById('ssTitle').textContent=title;
+  document.getElementById('ssSub').textContent=sub;
+}
+
+function syncAll(){
+  // Sync now works via Shortcut or clipboard paste
+  pasteFromClipboard();
+}
+
+// ══ RECOMPUTE FREE SLOTS ══
+function recompute(){
+  if(!icsLoaded) return;
+  const learnStart=+document.getElementById('learnStart').value;
+  const learnEnd=+document.getElementById('learnEnd').value;
+  const dur=+document.getElementById('sessionDur').value;
+  const maxDays=+document.getElementById('maxDaysPerWeek').value;
+  const restDaysVal=+document.getElementById('restDays').value;
+  freeSlotsByDay={};
+  const today=new Date(); today.setHours(0,0,0,0);
+  for(let i=0;i<150;i++){
+    const day=new Date(today); day.setDate(today.getDate()+i);
+    const key=toKey(day);
+    const busy=busySlots.filter(b=>toKey(b.start)===key);
+    const slots=[];
+    for(let h=learnStart;h<learnEnd;h++){
+      const s=new Date(day); s.setHours(h,0,0,0);
+      const en=new Date(s.getTime()+dur*60000);
+      if(!busy.some(b=>s<b.end&&en>b.start)) slots.push({start:s,end:en});
+    }
+    if(slots.length>0) freeSlotsByDay[key]=slots;
+  }
+  learnableSlots={};
+  const byWeek={};
+  Object.keys(freeSlotsByDay).forEach(key=>{const d=new Date(key+'T12:00:00');const wk=getWeekKey(d);if(!byWeek[wk])byWeek[wk]=[];byWeek[wk].push(key);});
+  Object.entries(byWeek).forEach(([wk,days])=>{
+    days.sort();
+    const targetLearnDays=Math.min(maxDays,Math.max(0,days.length-restDaysVal));
+    const step=Math.max(1,Math.floor(days.length/Math.max(1,targetLearnDays)));
+    const chosen=new Set(); let idx=0;
+    while(chosen.size<targetLearnDays&&idx<days.length){chosen.add(days[idx]);idx+=step;}
+    chosen.forEach(k=>{learnableSlots[k]=freeSlotsByDay[k];});
+  });
+  renderWeekGrid(learnStart,learnEnd);
+  renderCalInfo();
+}
+
+function renderCalInfo(){
+  const totalTermine=busySlots.length;
+  const lerntage=Object.keys(learnableSlots).length;
+  const freieSlots=Object.values(learnableSlots).reduce((s,v)=>s+v.length,0);
+  const busyDays=new Set(busySlots.map(b=>toKey(b.start))).size;
+  document.getElementById('calInfoGrid').innerHTML=`
+    <div class="info-cell"><div class="info-val">${totalTermine}</div><div class="info-lbl">Schultermine</div></div>
+    <div class="info-cell"><div class="info-val">${busyDays}</div><div class="info-lbl">Tage mit Schule</div></div>
+    <div class="info-cell"><div class="info-val">${lerntage}</div><div class="info-lbl">Lerntage geplant</div></div>
+    <div class="info-cell"><div class="info-val">${freieSlots}</div><div class="info-lbl">Freie Slots</div></div>
+  `;
+}
+
+function getPreviewMonday(){
+  const dateInput=document.getElementById('previewDate');
+  const base=dateInput&&dateInput.value?new Date(dateInput.value+'T12:00:00'):new Date();
+  base.setHours(0,0,0,0);
+  const mon=new Date(base);
+  mon.setDate(base.getDate()-((base.getDay()+6)%7));
+  return mon;
+}
+function goToToday(){document.getElementById('previewDate').value=toKey(new Date());recompute();}
+function prevWeek(){const m=getPreviewMonday();m.setDate(m.getDate()-7);document.getElementById('previewDate').value=toKey(m);recompute();}
+function nextWeek(){const m=getPreviewMonday();m.setDate(m.getDate()+7);document.getElementById('previewDate').value=toKey(m);recompute();}
+
+function renderWeekGrid(learnStart,learnEnd){
+  const grid=document.getElementById('weekGrid');
+  const DAYS=['Mo','Di','Mi','Do','Fr','Sa','So'];
+  grid.innerHTML='';
+  const mon=getPreviewMonday();
+  DAYS.forEach((name,di)=>{
+    const col=document.createElement('div'); col.className='wg-col';
+    const day=new Date(mon); day.setDate(mon.getDate()+di);
+    const key=toKey(day);
+    const dayBusy=busySlots.filter(b=>toKey(b.start)===key);
+    col.innerHTML=`<div class="wg-day">${name}<br><span style="font-weight:400">${day.getDate()}.${day.getMonth()+1}</span></div>`;
+    for(let h=learnStart;h<learnEnd;h++){
+      const slotS=new Date(day); slotS.setHours(h,0,0,0);
+      const slotE=new Date(slotS.getTime()+60*60000);
+      const isBusy=dayBusy.some(b=>slotS<b.end&&slotE>b.start);
+      const s=document.createElement('div');
+      s.className=isBusy?'wg-slot wg-busy':'wg-slot wg-free';
+      s.textContent=`${h}`;
+      col.appendChild(s);
+    }
+    grid.appendChild(col);
+  });
+}
+
+// ══ LOAD TEST ICS ══
+function loadTestICS(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const text=ev.target.result.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n[ \t]/g,'');
+    let imported=0;
+    text.split(/BEGIN:VEVENT/i).slice(1).forEach(block=>{
+      const summary=block.match(/SUMMARY:([^\n]+)/i)?.[1]?.trim()||'';
+      const rawStart=block.match(/DTSTART(?:;[^:]+)?:([^\n]+)/i)?.[1]?.trim();
+      const desc=block.match(/DESCRIPTION:([^\n]+)/i)?.[1]?.trim()||'';
+      if(!summary||!rawStart) return;
+      if(!/🔴|TEST|GLB|SA:|Schularbeit|\bTE\b/i.test(summary+' '+desc)) return;
+      const dt=parseICSDate(rawStart); if(!dt) return;
+      const date=toKey(dt);
+      let subject=summary.replace(/🔴\s*/g,'').replace(/^(TEST|GLB|SA|TE):\s*/i,'').replace(/\s*\([^)]*\)/g,'').replace(/\s*e1\d.*$/i,'').replace(/\s*EDV.*$/i,'').trim();
+      const tType=/GLB/i.test(summary)?'glb':/Schularbeit|\bSA\b/i.test(summary)?'sa':/mündlich|muendlich/i.test(summary)?'muendlich':'test';
+      const effort=tType==='sa'?8:tType==='glb'?6:tType==='muendlich'?4:3;
+      if(!tests.some(t=>t.date===date&&t.subject===subject)){
+        tests.push({id:Date.now()+Math.random(),subject,date,time:dt.toTimeString().slice(0,5),duration:tType==='sa'?100:50,tType,effort,note:desc.replace(/\\n/g,' ').trim()});
+        imported++;
+      }
+    });
+    if(imported>0){setPill('testImportStatus','success',`✅ ${imported} Tests importiert!`);showToast(`${imported} Tests importiert`,'success');}
+    else{setPill('testImportStatus','warn','⚠️ Keine Tests gefunden.');showToast('Keine Tests gefunden','warn');}
+    saveTests(); renderTests();
+  };
+  reader.readAsText(file);
+}
+
+// ══ ADD / RENDER TESTS ══
+function addTest(){
+  const sub=document.getElementById('sub').value.trim();
+  const date=document.getElementById('tDate').value;
+  if(!sub||!date){showToast('Fach und Datum eingeben!','error');return;}
+  tests.push({id:Date.now(),subject:sub,date,time:document.getElementById('tTime').value||'08:00',duration:+document.getElementById('tDuration').value||50,tType:document.getElementById('tType').value,effort:+document.getElementById('tEffort').value,note:document.getElementById('tNote').value.trim()});
+  document.getElementById('sub').value='';
+  document.getElementById('tDate').value='';
+  document.getElementById('tTime').value='08:00';
+  document.getElementById('tNote').value='';
+  saveTests(); renderTests();
+  showToast(`${sub} hinzugefügt`,'success');
+}
+function removeTest(id){tests=tests.filter(t=>t.id!==id);saveTests();renderTests();showToast('Test entfernt','info');}
+
+function renderTests(){
+  const list=document.getElementById('testsList');
+  document.getElementById('testCount').textContent=tests.length;
+  if(tests.length===0){list.innerHTML='<div class="empty"><div class="empty-icon">📝</div><div class="empty-title">Noch keine Tests</div></div>';return;}
+  const colors={test:'var(--orange)',sa:'var(--danger)',glb:'var(--accent2)',muendlich:'var(--purple)'};
+  const labels={test:'Test',sa:'Schularbeit',glb:'GLB',muendlich:'Mündlich'};
+  const bclass={test:'badge-test',sa:'badge-sa',glb:'badge-glb',muendlich:'badge-muendlich'};
+  list.innerHTML=tests.sort((a,b)=>a.date.localeCompare(b.date)).map(t=>{
+    const d=new Date(t.date+'T12:00:00');
+    const ds=d.toLocaleDateString('de-AT',{weekday:'short',day:'2-digit',month:'2-digit'});
+    return `<div class="test-item">
+      <div class="test-stripe" style="background:${colors[t.tType]}"></div>
+      <div class="test-body">
+        <div class="test-name">${t.subject}${t.note?` <span style="color:var(--muted);font-weight:400;font-size:0.78rem">– ${t.note}</span>`:''}</div>
+        <div class="test-meta">
+          <span class="badge ${bclass[t.tType]}">${labels[t.tType]}</span>
+          <span>~${t.effort}h</span>
+          <span>📅 ${ds}</span>
+          ${t.time?`<span>🕐 ${t.time}</span>`:''}
+        </div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="removeTest(${t.id})">✕</button>
+    </div>`;
+  }).join('');
+  document.getElementById('dot2').classList.add('on');
+}
+
+// ══ GENERATE PLAN ══
+function generatePlan(){
+  if(!icsLoaded){showToast('Bitte erst Kalender synchronisieren!','error');return;}
+  if(tests.length===0){showToast('Bitte mindestens einen Test eintragen!','error');return;}
+  const dur=+document.getElementById('sessionDur').value;
+  const allEvents=[];
+  tests.forEach(t=>{
+    const dt=new Date(t.date+'T'+(t.time||'08:00')+':00');
+    const dur2=(t.duration||50)*60000;
+    const labels={test:'🔴 Test',sa:'🔴 Schularbeit',glb:'🔴 GLB',muendlich:'🔴 Mündliche Prüfung'};
+    allEvents.push({type:'test',subject:t.subject,label:`${labels[t.tType]}: ${t.subject}`,start:new Date(dt),end:new Date(dt.getTime()+dur2),note:t.note,testId:t.id});
+  });
+  const usedSlots=new Set();
+  tests.sort((a,b)=>a.date.localeCompare(b.date)).forEach(test=>{
+    const testDate=new Date(test.date+'T00:00:00');
+    const today=new Date(); today.setHours(0,0,0,0);
+    const daysUntil=Math.floor((testDate-today)/86400000);
+    if(daysUntil<0) return;
+    const sessionsNeeded=Math.max(2,Math.ceil(test.effort/(dur/60)));
+    const pool=[];
+    for(let i=1;i<daysUntil;i++){
+      const d=new Date(today); d.setDate(today.getDate()+i);
+      const key=toKey(d);
+      const daySlots=(learnableSlots[key]||freeSlotsByDay[key]||[]).filter(s=>!usedSlots.has(s.start.toISOString()));
+      daySlots.forEach(slot=>pool.push({date:new Date(d),slot,daysLeft:daysUntil-i,key}));
+    }
+    if(pool.length===0) return;
+    const toPlace=Math.min(sessionsNeeded,pool.length);
+    const lastEntry=pool[pool.length-1];
+    usedSlots.add(lastEntry.slot.start.toISOString());
+    allEvents.push({type:'intense',subject:test.subject,label:`🔥 Intensiv: ${test.subject}`,start:new Date(lastEntry.slot.start),end:new Date(lastEntry.slot.start.getTime()+Math.min(dur*1.5,90)*60000),note:test.note});
+    const rem=toPlace-1;
+    if(rem>0){
+      const others=pool.filter(p=>!usedSlots.has(p.slot.start.toISOString()));
+      const step=Math.max(1,Math.floor(others.length/rem));
+      let placed=0;
+      for(let i=0;placed<rem&&i<others.length;i+=step){
+        const entry=others[i];
+        if(usedSlots.has(entry.slot.start.toISOString())) continue;
+        usedSlots.add(entry.slot.start.toISOString());
+        const type=entry.daysLeft<=3?'review':'learn';
+        allEvents.push({type,subject:test.subject,label:type==='review'?`📖 Wiederholen: ${test.subject}`:`📚 Lernen: ${test.subject}`,start:new Date(entry.slot.start),end:new Date(entry.slot.end),note:test.note});
+        placed++;
+      }
+    }
+  });
+  allEvents.sort((a,b)=>a.start-b.start);
+  generatedEvents=allEvents;
+  renderPlan(allEvents);
+  document.getElementById('exportBtn').style.display='flex';
+  document.getElementById('dot3').classList.add('on');
+  showToast(`${allEvents.length} Einheiten geplant ✓`,'success');
+  // Auto-save to Netlify
+  autoSavePlan();
+}
+
+
+// ══ KALENDER SYNC ══
+function getToken(){
+  var t=localStorage.getItem('lp_token');
+  if(!t){t=Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10);localStorage.setItem('lp_token',t);}
+  return t;
+}
+
+async function autoSavePlan(){
+  if(!generatedEvents.length) return;
+  var token=getToken();
+  var feedUrl=window.location.origin+'/.netlify/functions/plan-feed?token='+token;
+  localStorage.setItem('lp_feedUrl',feedUrl);
+  showFeedUrl(feedUrl);
+  var ics=buildICS(generatedEvents);
+  try{
+    var res=await fetch('/.netlify/functions/plan-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ics:ics,token:token})});
+    var d=await res.json().catch(function(){return {};});
+    if(res.ok){showToast('Gespeichert ('+(d.method||'ok')+') ✓','success');}
+    else throw new Error(d.error||'HTTP '+res.status);
+  }catch(e){showToast('Speicherfehler: '+e.message,'error');}
+}
+
+async function forceSyncNow(){
+  var btn=document.getElementById('forceSyncBtn');
+  var box=document.getElementById('syncResultBox');
+  if(!generatedEvents.length){showToast('Plan zuerst generieren!','error');return;}
+  if(btn){btn.disabled=true;btn.textContent='...';}
+  await new Promise(function(r){setTimeout(r,1200);});
+  var token=getToken();
+  var ics=buildICS(generatedEvents);
+  try{
+    var res=await fetch('/.netlify/functions/plan-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ics:ics,token:token})});
+    var d=await res.json().catch(function(){return {};});
+    if(res.ok){
+      showBox(box,'ok','<strong>Kalender aktualisiert!</strong> ('+( d.method||'ok')+')<br><span style="color:var(--muted)">iCloud laedt in wenigen Minuten. Kalender-App nach unten ziehen.</span>');
+      showToast('Sync OK ✓','success');
+    }else throw new Error(d.error||'HTTP '+res.status);
+  }catch(e){
+    showBox(box,'error','Sync fehlgeschlagen: '+e.message);
+    showToast('Sync fehlgeschlagen','error');
+  }finally{
+    if(btn){btn.disabled=false;setTimeout(function(){btn.textContent='Sync';},4000);}
+  }
+}
+
+async function testFeedNow(){
+  var btn=document.getElementById('testFeedBtn');
+  var box=document.getElementById('feedTestResult');
+  var url=localStorage.getItem('lp_feedUrl');
+  if(!url){showToast('Kein Feed – Plan erst generieren!','error');return;}
+  if(btn){btn.disabled=true;btn.textContent='Teste...';}
+  try{
+    var res=await fetch(url+'&_nc='+Date.now(),{cache:'no-store'});
+    var text=await res.text();
+    var count=(text.match(/BEGIN:VEVENT/g)||[]).length;
+    if(text.indexOf('BEGIN:VCALENDAR')<0){
+      showBox(box,'error','Kein gueltiger Feed! Antwort: '+text.slice(0,200));
+    }else if(count===0){
+      showBox(box,'warn','<strong>Feed leer (0 Events)</strong><br>Auf Sync tippen und erneut testen.');
+    }else{
+      var m=text.match(/SUMMARY:([^\r\n]+)/);
+      var first=m?m[1]:'?';
+      showBox(box,'ok','<strong>'+count+' Events im Feed ✓</strong><br>Erstes Event: '+first+'<br><span style="color:var(--muted)">Falls iCloud leer: Kalender-App nach unten ziehen.</span>');
+    }
+  }catch(e){showBox(box,'error','Feed nicht erreichbar: '+e.message);}
+  finally{if(btn){btn.disabled=false;btn.textContent='Feed testen';}}
+}
+
+function showBox(el,type,html){
+  if(!el)return;
+  var styles={ok:'background:rgba(127,255,110,0.08);border:1px solid rgba(127,255,110,0.2);color:var(--accent)',warn:'background:rgba(255,184,110,0.08);border:1px solid rgba(255,184,110,0.2);color:var(--orange)',error:'background:rgba(255,110,110,0.08);border:1px solid rgba(255,110,110,0.2);color:var(--danger)'};
+  el.style.cssText='display:block;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:0.75rem;line-height:1.5;'+styles[type];
+  el.innerHTML=html;
+}
+
+function showFeedUrl(feedUrl){
+  var card=document.getElementById('subscribeCard');
+  var box=document.getElementById('feedUrlBox');
+  if(card&&box){box.textContent=feedUrl;card.style.display='block';}
+}
+
+function copyFeedUrl(){
+  var url=localStorage.getItem('lp_feedUrl');
+  if(!url)return;
+  navigator.clipboard.writeText(url).then(function(){showToast('Link kopiert!','success');}).catch(function(){
+    var el=document.createElement('textarea');el.value=url;document.body.appendChild(el);el.select();
+    document.execCommand('copy');document.body.removeChild(el);showToast('Link kopiert!','success');
+  });
+}
+
+function openInCalendar(){
+  var url=localStorage.getItem('lp_feedUrl');
+  if(!url)return;
+  window.location.href=url.replace('https://','webcal://');
+}
+
+
+
+// ══ RENDER PLAN ══
+function renderPlan(events){
+  const out=document.getElementById('planOutput');
+  if(events.length===0){
+    out.innerHTML='<div class="empty"><div class="empty-icon">😕</div><div class="empty-title">Keine Slots gefunden</div><div class="empty-sub">Überprüfe Kalender und Lernzeiten.</div></div>';
+    return;
+  }
+  const grouped={};
+  events.forEach(e=>{const k=toKey(e.start);if(!grouped[k])grouped[k]=[];grouped[k].push(e);});
+  out.innerHTML=Object.entries(grouped).map(([key,dayEvts])=>{
+    const d=new Date(key+'T12:00:00');
+    const dayStr=d.toLocaleDateString('de-AT',{weekday:'short',day:'2-digit',month:'short'});
+    const hasTest=dayEvts.some(e=>e.type==='test');
+    const sessions=dayEvts.map(e=>{
+      const t1=e.start.toTimeString().slice(0,5);
+      const t2=e.end.toTimeString().slice(0,5);
+      const cls={learn:'chip-learn',review:'chip-review',intense:'chip-intense',test:'chip-test'}[e.type];
+      return `<div class="plan-row">
+        <span class="plan-time">${t1}–${t2}</span>
+        <span class="plan-chip ${cls}">${e.label}</span>
+        ${e.note?`<span class="plan-note">${e.note}</span>`:''}
+      </div>`;
+    }).join('');
+    return `<div class="plan-day">
+      <div class="plan-day-head" style="${hasTest?'background:rgba(255,110,110,0.08);color:var(--danger)':''}">
+        <span>${dayStr}</span>
+        <span class="plan-day-badge">${hasTest?'🔴 PRÜFUNG':dayEvts.length+' Einheit'+(dayEvts.length>1?'en':'')}</span>
+      </div>
+      <div class="plan-sessions">${sessions}</div>
+    </div>`;
+  }).join('');
+}
+
+// ══ EXPORT ICS ══
+function exportICS(){
+  if(!generatedEvents.length) return;
+  const ics=buildICS(generatedEvents);
+  const blob=new Blob([ics],{type:'text/calendar'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='lernplan.ics';
+  a.click();
+  showToast('ICS exportiert!','success');
+}
+
+// ══ NAVIGATION ══
+function switchScreen(name,el){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('scrollArea').scrollTop=0;
+}
+function setPill(id,type,msg){const el=document.getElementById(id);el.className=`pill pill-${type}`;el.textContent=msg;}
+
+// ══ LOAD STUNDENPLAN (from file upload fallback) ══
+function loadStundenplan(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    processICSData(ev.target.result, file.name);
+  };
+  reader.readAsText(file);
+}
+
+// ══ HANDLE ICS DATA FROM ANY SOURCE ══
+function processICSData(text, sourceName){
+  busySlots=parseICS(text);
+  icsLoaded=true;
+  const days=new Set(busySlots.map(b=>toKey(b.start))).size;
+  const now=new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
+  setSyncStatus('ok',`${busySlots.length} Termine geladen`,`${sourceName} – ${days} Tage mit Terminen – ${now}`);
+  document.getElementById('dot1').classList.add('on');
+  document.getElementById('calInfoCard').style.display='block';
+  document.getElementById('settingsCard').style.display='block';
+  if(busySlots.length>0){
+    const firstDate=busySlots.reduce((a,b)=>a.start<b.start?a:b).start;
+    document.getElementById('previewDate').value=toKey(firstDate);
+  } else document.getElementById('previewDate').value=toKey(new Date());
+  // Save raw ICS text for persistence
+  try{ localStorage.setItem('lp_icsCache', text); localStorage.setItem('lp_icsCacheName','Gespeicherter Kalender'); }catch(e){}
+  recompute();
+  showToast(`${busySlots.length} Termine geladen ✓`,'success');
+}
+
+// ══ CHECK URL PARAMS (from Shortcut) ══
+// The iOS Shortcut opens the app with ?ics=<base64data> or shares a file
+function checkURLParams(){
+  const params=new URLSearchParams(window.location.search);
+  // Method 1: ICS data passed as base64 URL param
+  const icsB64=params.get('ics');
+  if(icsB64){
+    try{
+      const text=atob(icsB64);
+      if(text.includes('BEGIN:VCALENDAR')){
+        processICSData(text,'iOS Kurzbefehl');
+        // Clean URL
+        history.replaceState({},'',window.location.pathname);
+        return true;
+      }
+    }catch(e){}
+  }
+  // Method 2: Check clipboard (user ran shortcut that copied ICS)
+  // We offer a "Aus Zwischenablage" button for this
+  return false;
+}
+
+async function pasteFromClipboard(){
+  try{
+    const text=await navigator.clipboard.readText();
+    if(text.includes('BEGIN:VCALENDAR')){
+      processICSData(text,'Zwischenablage');
+    } else {
+      showToast('Keine ICS-Daten in der Zwischenablage','error');
+    }
+  }catch(e){
+    showToast('Zugriff auf Zwischenablage nicht erlaubt','error');
+  }
+}
+
+// ══ INIT ══
+loadSaved();
+// Restore saved calUrl
+const savedUrl=localStorage.getItem('lp_calUrl');
+if(savedUrl){const el=document.getElementById('calUrl');if(el)el.value=savedUrl;}
+
+// Try to restore cached ICS
+const cachedICS=localStorage.getItem('lp_icsCache');
+const cachedName=localStorage.getItem('lp_icsCacheName')||'Gespeicherter Kalender';
+if(cachedICS){
+  setTimeout(()=>processICSData(cachedICS, cachedName+' (gecacht)'),100);
+}
+// Auto-sync from URL if enabled and URL saved
+if(autoSync && savedUrl && !cachedICS){
+  setTimeout(()=>syncFromUrl(),800);
+} else if(autoSync && savedUrl && cachedICS){
+  // Refresh in background silently after cached version loads
+  setTimeout(async()=>{
+    try{const t=await fetchWithProxy(savedUrl);processICSData(t,'iCloud (aktuell)');}catch(e){}
+  },2000);
+}
+// Check if shortcut passed data via URL
+checkURLParams();
+// Restore feed URL if already set
+const savedFeed=localStorage.getItem('lp_feedUrl');
+if(savedFeed) showFeedUrl(savedFeed);
+</script>
+</body>
+</html>
